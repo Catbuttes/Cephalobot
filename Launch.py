@@ -1,10 +1,24 @@
 import json
-import discord
-from discord.ext import commands
+import logging as log
+import os
 from threading import Event, Thread
 
+import discord
+import prometheus_client
+from discord.ext import commands
+
+prometheus_client.start_http_server(8080)
+MOD_CHECKS = prometheus_client.Counter("cephalobot_mod_checks_total", "Total times a mod permissions check has been made")
+ADMIN_CHECKS = prometheus_client.Counter("cephalobot_admin_checks_total", "Total times a admin permissions check has been made")
+BULK_DELETE = prometheus_client.Counter("cephalobot_bulk_delete_total", "Total times a bulk delete has been made")
+MSG_DELETE = prometheus_client.Counter("cephalobot_msg_delete_total", "Total times a message deletion has been made")
+MSG_EDIT = prometheus_client.Counter("cephalobot_msg_edit_total", "Total times a message edit has been made")
+MEMBER_JOIN = prometheus_client.Counter("cephalobot_member_join_total", "Total times a member has joined")
+MEMBER_PART = prometheus_client.Counter("cephalobot_member_part_total", "Total times a member has departed")
+ROLES_RESTORE = prometheus_client.Counter("cephalobot_roles_restore_total", "Total times roles have been restored")
+
 bot = commands.Bot(command_prefix="c!")
-info = json.loads(open("Info.json").read())
+info = json.loads(open("/data/Info.json").read())
 
 
 # Cant get this to work will comment for now
@@ -18,7 +32,7 @@ def get_guild(guild_thing):
 
 
 def save():
-    open("Info.json", "w").write(json.dumps(info))
+    open("/data/Info.json", "w").write(json.dumps(info))
 
 
 default_webhook = {"username": "Cephalobot",
@@ -28,6 +42,7 @@ default_webhook = {"username": "Cephalobot",
 
 def is_mod():
     def predicate(ctx):
+        MOD_CHECKS.inc()
         guild = get_guild(ctx)
         if "mod roles" in guild:
             mod_roles = guild["mod roles"]
@@ -42,6 +57,7 @@ def is_mod():
 
 def is_admin():
     def predicate(ctx):
+        ADMIN_CHECKS.inc()
         guild = get_guild(ctx)
         if "admin roles" in guild:
             admin_roles = guild["admin roles"]
@@ -57,9 +73,9 @@ def is_admin():
 async def webhook_send(channel_id, embed):
     channel = bot.get_channel(channel_id)
     hooks = await channel.webhooks()
-    hook = discord.utils.get(hooks, name='Modshard:' + str(+channel.id))
+    hook = discord.utils.get(hooks, name='Cephalobot:' + str(+channel.id))
     if hook is None:
-        hook = await channel.create_webhook(name='Modshard:' + str(channel.id))
+        hook = await channel.create_webhook(name='Cephalobot:' + str(channel.id))
     guild = get_guild(channel)
     if "webhook" not in guild:
         guild["webhook"] = dict(default_webhook)
@@ -86,11 +102,12 @@ async def on_ready():
     global appli
     appli = await bot.application_info()
     print("Logged in! bot invite: https://discordapp.com/api/oauth2/authorize?client_id=" +
-          str(appli.id) + "&permissions=0&scope=bot")
+          str(appli.id) + "&permissions=7247834116&scope=bot")
 
 
 @bot.event
 async def on_bulk_message_delete(messages):
+    BULK_DELETE.inc()
     # Logging
     for message in messages:
         await on_message_delete(message)
@@ -98,9 +115,11 @@ async def on_bulk_message_delete(messages):
 
 @bot.event
 async def on_message_delete(message):
+    MSG_DELETE.inc()
     # Logging
     guild = get_guild(message.channel)
     if "message log" in guild:
+        log.info("Logging Message Deletion")
         embed = discord.Embed(color=discord.Color.red())
         embed.title = "Deleted Message"
         embed.add_field(name="Username", value=message.author)
@@ -112,9 +131,11 @@ async def on_message_delete(message):
 
 @bot.event
 async def on_message_edit(before, after):
+    MSG_EDIT.inc()
     # Logging
     guild = get_guild(before.channel)
     if "message log" in guild and before.content != "" and before.content != after.content:
+        log.info("Logging Message Edit")
         embed = discord.Embed(color=discord.Color.blue())
         embed.title = "Edited Message"
         embed.add_field(name="Username", value=after.author)
@@ -127,6 +148,7 @@ async def on_message_edit(before, after):
 
 @bot.event
 async def on_member_remove(member):
+    MEMBER_PART.inc()
     # Sticky Role
     guild = get_guild(member)
     if "sticky role" in guild and member.guild.get_role(get_guild(member)['sticky role']) in member.roles:
@@ -145,9 +167,11 @@ async def on_member_remove(member):
 
 @bot.event
 async def on_member_join(member):
+    MEMBER_JOIN.inc()
     # Sticky Roles
     guild = get_guild(member)
     if "sticky role" in guild and "evaders" in guild and member.id in guild['evaders']:
+        ROLES_RESTORE.inc()
         await member.add_roles(member.guild.get_role(guild['sticky role']))
 
     # Logging
@@ -491,4 +515,4 @@ async def masspong(ctx, *, reason: str = ""):
     await send_long(ctx, output)
 
 
-bot.run(open("Token.txt").read())
+bot.run(os.environ['cephalobot_token'])
