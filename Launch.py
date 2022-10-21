@@ -11,6 +11,7 @@ prometheus_client.start_http_server(8080)
 MOD_CHECKS = prometheus_client.Counter("cephalobot_mod_checks_total", "Total times a mod permissions check has been made")
 ADMIN_CHECKS = prometheus_client.Counter("cephalobot_admin_checks_total", "Total times a admin permissions check has been made")
 BULK_DELETE = prometheus_client.Counter("cephalobot_bulk_delete_total", "Total times a bulk delete has been made")
+MSG_RECV = prometheus_client.Counter("cephalobot_msg_recv_total", "Total times a message has been recieved")
 MSG_DELETE = prometheus_client.Counter("cephalobot_msg_delete_total", "Total times a message deletion has been made")
 MSG_EDIT = prometheus_client.Counter("cephalobot_msg_edit_total", "Total times a message edit has been made")
 MEMBER_JOIN = prometheus_client.Counter("cephalobot_member_join_total", "Total times a member has joined")
@@ -104,6 +105,9 @@ async def on_ready():
     print("Logged in! bot invite: https://discordapp.com/api/oauth2/authorize?client_id=" +
           str(appli.id) + "&permissions=7247834116&scope=bot")
 
+@bot.event
+async def on_message(message):
+    MSG_RECV.inc()
 
 @bot.event
 async def on_bulk_message_delete(messages):
@@ -111,7 +115,6 @@ async def on_bulk_message_delete(messages):
     # Logging
     for message in messages:
         await on_message_delete(message)
-
 
 @bot.event
 async def on_message_delete(message):
