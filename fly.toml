@@ -34,3 +34,7 @@ processes = []
 [mounts]
 source="cephalobot_data"
 destination="/data"
+
+[metrics]
+port = 8080
+path = "/metrics"
