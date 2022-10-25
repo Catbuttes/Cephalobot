@@ -1,5 +1,6 @@
 import json
 import logging as log
+from operator import truediv
 import os
 from threading import Event, Thread
 
@@ -18,7 +19,9 @@ MEMBER_JOIN = prometheus_client.Counter("cephalobot_member_join_total", "Total t
 MEMBER_PART = prometheus_client.Counter("cephalobot_member_part_total", "Total times a member has departed")
 ROLES_RESTORE = prometheus_client.Counter("cephalobot_roles_restore_total", "Total times roles have been restored")
 
-bot = commands.Bot(command_prefix="c!")
+intents = discord.Intents.all()
+
+bot = commands.Bot(command_prefix="c!", intents=intents)
 info = json.loads(open("/data/Info.json").read())
 
 
