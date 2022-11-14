@@ -18,6 +18,10 @@ MSG_EDIT = prometheus_client.Counter("cephalobot_msg_edit_total", "Total times a
 MEMBER_JOIN = prometheus_client.Counter("cephalobot_member_join_total", "Total times a member has joined")
 MEMBER_PART = prometheus_client.Counter("cephalobot_member_part_total", "Total times a member has departed")
 ROLES_RESTORE = prometheus_client.Counter("cephalobot_roles_restore_total", "Total times roles have been restored")
+BAN = prometheus_client.Counter("cephalobot_ban_total", "Total times ban has been invoked")
+MASS_BAN = prometheus_client.Counter("cephalobot_mass_ban_total", "Total times mass ban has been invoked")
+ERROR = prometheus_client.Counter("cephalobot_error_total", "Total error count")
+CMD_ERROR = prometheus_client.Counter("cephalobot_cmd_error_total", "Total command error count")
 
 intents = discord.Intents.all()
 
@@ -100,6 +104,14 @@ async def send_long(ctx, text: str):
             await ctx.send(text[:2000])
             text = text[2000:]
 
+@bot.event
+async def on_command_error(ctx, error):
+    CMD_ERROR.inc()
+
+@bot.event
+async def on_error(ctx, error):
+    ERROR.inc()
+
 
 @bot.event
 async def on_ready():
@@ -111,6 +123,7 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     MSG_RECV.inc()
+    await bot.process_commands(message)
 
 @bot.event
 async def on_bulk_message_delete(messages):
@@ -435,6 +448,7 @@ async def _poll(ctx, id: int, *, reason: str = ""):
 @bot.command()
 @commands.check_any(commands.has_permissions(administrator=True), is_mod(), is_admin())
 async def ban(ctx, id: int, *, reason: str = ""):
+    BAN.inc()
     target = await _ban(ctx, id, reason=reason)
     if target[0]:
         await ctx.send(
@@ -449,6 +463,7 @@ async def massban(ctx, *, reason: str = ""):
     def check(msg):
         return ctx.author.id == msg.author.id and ctx.channel.id == msg.channel.id
 
+    MASS_BAN.inc()
     await ctx.send("Please send the IDs of users you want to ban, seperated by spaces")
     message = await bot.wait_for("message", check=check)
     identifiers = message.content.split(" ")
