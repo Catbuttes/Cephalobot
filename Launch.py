@@ -416,15 +416,14 @@ async def save_command(ctx):
 
 
 async def is_banned(guild, id: int):
-    bans = await guild.bans()
-    for entry in bans:
+    async for entry in guild.bans():
         if entry.user.id == id:
             reason = entry.reason if entry.reason is not None else "No reason given"
             return True, ", User is already banned. Reason: %s" % reason
     return False, ""
 
 
-async def _ban(ctx, id: int, *, reason: str = ""):
+async def run_ban(ctx, id: int, *, reason: str = ""):
     try:
         info = await is_banned(ctx.guild, id)
         if not info[0]:
@@ -449,7 +448,7 @@ async def _poll(ctx, id: int, *, reason: str = ""):
 @commands.check_any(commands.has_permissions(administrator=True), is_mod(), is_admin())
 async def ban(ctx, id: int, *, reason: str = ""):
     BAN.inc()
-    target = await _ban(ctx, id, reason=reason)
+    target = await run_ban(ctx, id, reason=reason)
     if target[0]:
         await ctx.send(
             "Successfully banned <@{}> ({}#{})".format(target[1].id, target[1].name, target[1].discriminator))
@@ -484,7 +483,7 @@ async def massban(ctx, *, reason: str = ""):
     success = []
     failure = []
     for i in temp:
-        result = await _ban(ctx, i, reason=reason)
+        result = await run_ban(ctx, i, reason=reason)
         if result[0]:
             success.append(str(result[1].id))
         else:
