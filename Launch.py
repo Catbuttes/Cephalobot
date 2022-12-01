@@ -17,6 +17,7 @@ MSG_DELETE = prometheus_client.Counter("cephalobot_msg_delete_total", "Total tim
 MSG_EDIT = prometheus_client.Counter("cephalobot_msg_edit_total", "Total times a message edit has been made")
 MEMBER_JOIN = prometheus_client.Counter("cephalobot_member_join_total", "Total times a member has joined")
 MEMBER_PART = prometheus_client.Counter("cephalobot_member_part_total", "Total times a member has departed")
+THREAD_JOIN = prometheus_client.Counter("cephalobot_thread_join_total", "Total number of threads joined")
 ROLES_RESTORE = prometheus_client.Counter("cephalobot_roles_restore_total", "Total times roles have been restored")
 BAN = prometheus_client.Counter("cephalobot_ban_total", "Total times ban has been invoked")
 MASS_BAN = prometheus_client.Counter("cephalobot_mass_ban_total", "Total times mass ban has been invoked")
@@ -124,6 +125,11 @@ async def on_ready():
 async def on_message(message):
     MSG_RECV.inc()
     await bot.process_commands(message)
+
+@bot.event
+async def on_thread_create(thread):
+    THREAD_JOIN.inc()
+    await thread.join()
 
 @bot.event
 async def on_bulk_message_delete(messages):
